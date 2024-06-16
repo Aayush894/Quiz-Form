@@ -2,18 +2,21 @@ import { useState, useEffect } from "react";
 import Quiz from "./pages/Quiz";
 import Popup from "./components/Popup";
 import Response from "./pages/Response";
+import Start from "./pages/Start";
 
 const App = () => {
   const [isFullScreen, setIsFullScreen] = useState(false);
   const [responses, setResponses] = useState(() => {
+    const savedSubmitted = localStorage.getItem("submitted");
     const savedResponses = localStorage.getItem("responses");
-    return savedResponses ? JSON.parse(savedResponses) : {};
+    return savedResponses && savedSubmitted ? JSON.parse(savedResponses) : {};
   });
   const [submitted, setSubmitted] = useState(() => {
     const savedSubmitted = localStorage.getItem("submitted");
     return savedSubmitted ? JSON.parse(savedSubmitted) : false;
   });
-  const [timer, setTimer] = useState(20); 
+  const [timer, setTimer] = useState(0); 
+  const [started, setStarted] = useState(false); 
 
   useEffect(() => {
     const handleFullScreenChange = () => {
@@ -34,7 +37,7 @@ const App = () => {
   }, [submitted]);
 
   useEffect(() => {
-    if (!submitted) {
+    if (started && !submitted) {
       const timerInterval = setInterval(() => {
         if (timer > 0) {
           setTimer((prevTimer) => prevTimer - 1);
@@ -45,7 +48,12 @@ const App = () => {
 
       return () => clearInterval(timerInterval);
     }
-  }, [timer, responses, submitted]);
+  }, [timer, responses, submitted, started]);
+
+  const handleStartQuiz = () => {
+    setTimer(600);
+    setStarted(true);
+  };
 
   const handleFullScreenRequest = () => {
     if (!document.fullscreenElement) {
@@ -70,7 +78,8 @@ const App = () => {
     setSubmitted(false);
     localStorage.removeItem("responses");
     localStorage.removeItem("submitted");
-    setTimer(20); 
+    setTimer(0); // Reset timer to 0
+    setStarted(false); // Reset started state to false
   };
 
   const handleOptionChange = (questionId, selectedOption) => {
@@ -80,7 +89,8 @@ const App = () => {
 
   return (
     <div className="min-h-screen bg-gray-100">
-      {!submitted ?(
+      {timer == 0 && !submitted ? <Start handleStartQuiz={handleStartQuiz} /> : null}
+      {!submitted && timer ?(
         <div className="bg-white p-4 shadow-md">
           <div className="flex justify-between items-center">
             <div className="text-lg font-semibold">Quiz Timer:</div>
@@ -91,7 +101,7 @@ const App = () => {
           </div>
         </div>
       ): null}
-      {!isFullScreen && !submitted ? (
+      {!isFullScreen && !submitted && timer !== 0 ? (
         <div className="blur-sm">
           <Quiz
             responses={responses}
@@ -103,16 +113,16 @@ const App = () => {
         <>
           {submitted ? (
             <Response responses={responses} handleReattempt={handleReattempt} />
-          ) : (
+          ) : (timer !== 0? (
             <Quiz
               responses={responses}
               onSubmit={handleQuizSubmit}
               onOptionChange={handleOptionChange}
             />
-          )}
+          ) : null)}
         </>
       )}
-      {!isFullScreen && !submitted && (
+      {!isFullScreen && !submitted && started && (
         <Popup onRequestFullScreen={handleFullScreenRequest} />
       )}
     </div>
